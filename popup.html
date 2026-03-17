@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koppl — Font Switcher</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="popup-tooltips.css">
+</head>
+<body>
+<main class="app">
+
+  <!-- ══ TOP BAR ══ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="app-wordmark">Koppl</span>
+      <div class="site-pill">
+        <span class="site-dot" id="siteDot"></span>
+        <span id="siteLabel" data-i18n="siteLabelReading">Reading…</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button type="button" class="topbar-snap-btn" id="snapshotButton" data-tooltip="Take a screenshot of the current page with applied fonts">📷</button>
+      <label class="ovr-label" for="overrideCheckbox" data-tooltip="Toggle fonts on/off for this site (or Ctrl+Shift+F)">
+        <input id="overrideCheckbox" type="checkbox" aria-label="Override on this site">
+        <div class="ovr-track"></div>
+        <span class="ovr-text override-label" id="ovrText" data-i18n="onThisSite">On</span>
+      </label>
+    </div>
+  </header>
+
+  <!-- ══ NAV TABS ══ -->
+  <nav class="nav" role="tablist" aria-label="Sections">
+    <button type="button" class="nav-tab" role="tab" id="tabInspect"
+      aria-selected="true" aria-controls="panelInspect" data-tab="inspect" data-i18n="tabInspect">
+      Inspect
+    </button>
+    <button type="button" class="nav-tab" role="tab" id="tabUpload"
+      aria-selected="false" aria-controls="panelUpload" data-tab="upload" data-i18n="tabUpload">
+      Upload<span class="nav-count" id="uploadBadge"></span>
+    </button>
+    <button type="button" class="nav-tab" role="tab" id="tabApply"
+      aria-selected="false" aria-controls="panelApply" data-tab="apply" data-i18n="tabApply">
+      Apply
+    </button>
+    <button type="button" class="nav-tab" role="tab" id="tabSites"
+      aria-selected="false" aria-controls="panelSites" data-tab="sites" data-i18n="tabSites">
+      Sites<span class="nav-count" id="sitesBadge"></span>
+    </button>
+  </nav>
+
+  <!-- ══ PANELS ══ -->
+  <div class="panels">
+
+    <!-- ────────── UPLOAD ────────── -->
+    <section id="panelUpload" class="panel" role="tabpanel" aria-labelledby="tabUpload" hidden>
+
+      <div class="upload-zone-wrap">
+        <label class="upload-zone upload-area upload-panel" for="fontFile">
+          <input id="fontFile" type="file" accept=".woff,.woff2,.ttf,.otf" multiple hidden>
+          <div class="uz-icon upload-icon" aria-hidden="true"></div>
+          <p class="uz-cta upload-title" data-i18n="uploadChooseFiles">Drop fonts or click to browse</p>
+          <small class="uz-hint" data-i18n="uploadLocalOnly">Files stay local — nothing is ever uploaded.</small>
+          <span class="uz-fmts upload-formats">WOFF2 · WOFF · TTF · OTF</span>
+        </label>
+      </div>
+
+      <!-- URL import -->
+      <div class="url-import-section">
+        <div class="url-import-divider">
+          <span data-i18n="orImportFromUrl">or import from URL</span>
+        </div>
+        <div class="url-import-row">
+          <input type="url" id="urlImportInput" class="url-import-input"
+            data-i18n-placeholder="urlImportPlaceholder"
+            placeholder="https://fonts.googleapis.com/css2?family=Inter"
+            spellcheck="false" autocomplete="off">
+          <button class="url-import-btn" id="urlImportButton" type="button"
+            data-i18n="importFromUrl">Import</button>
+        </div>
+        <p class="url-import-hint" data-i18n="urlImportHint">Google Fonts, CDN links, or direct .woff2/.ttf URLs</p>
+      </div>
+
+      <!-- Font list (rendered by render.js) -->
+      <ul class="font-list" id="fontList" aria-label="Saved fonts"></ul>
+
+      <!-- Upload preview (shown after file picked) -->
+      <div class="upload-preview-wrap" id="uploadPreviewWrap" hidden>
+        <p class="preview-text upload-preview-text" id="uploadPreviewText">Sphinx of black quartz, judge my vow.</p>
+        <p class="preview-subtext" id="uploadPreviewDetail">0123456789 · The quick brown fox jumps over the lazy dog.</p>
+      </div>
+
+      <!-- Progress + footer -->
+      <div class="save-progress"><div class="save-bar" id="saveBar"></div></div>
+      <div class="upload-footer">
+        <button class="btn-save rip-host" id="uploadButton" type="button" data-i18n="saveFonts" data-tooltip="Save to browser storage">Save fonts</button>
+        <button type="button" class="btn-cleanup cleanup-unused-btn" id="cleanupUnusedButton" data-i18n="removeUnusedFonts" data-tooltip="Delete unused fonts">Remove unused fonts</button>
+        <p class="storage-note storage-usage" id="storageUsage" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- ────────── APPLY ────────── -->
+    <section id="panelApply" class="panel" role="tabpanel" aria-labelledby="tabApply" hidden>
+
+      <!-- Specimen -->
+      <div class="specimen" id="specimen">
+        <div class="font-selector-wrap">
+          <div class="font-selector-cell" id="fontSelectorCell">
+            <span class="fsc-label" data-i18n="selectedFont">Active font</span>
+            <div class="font-select-inner">
+              <input type="search" id="fontSearch" class="font-search-input" placeholder="Search fonts…" autocomplete="off" spellcheck="false">
+              <select id="fontSelect" class="font-select-native"></select>
+            </div>
+          </div>
+          <button type="button" class="fave-btn" id="favoriteButton" aria-label="Toggle favorite" data-tooltip="Mark as favorite" hidden>★</button>
+        </div>
+
+        <!-- Preview area -->
+        <div class="upload-preview-wrap preview-hero" id="applyPreviewWrap" hidden>
+          <p class="preview-text apply-preview-text" id="applyPreviewText" contenteditable="true" spellcheck="false" data-p="Type to preview…">Sphinx of black quartz, judge my vow.</p>
+          <div class="preview-size-row">
+            <span class="preview-size-a small" aria-hidden="true">A</span>
+            <input type="range" id="previewSizeSlider" class="preview-size-slider" min="16" max="96" step="4" value="44" aria-label="Preview font size">
+            <span class="preview-size-a large" aria-hidden="true">A</span>
+            <span class="preview-size-val" id="previewSizeVal">44px</span>
+          </div>
+          <p class="preview-subtext" id="applyPreviewDetail">0123456789 · The quick brown fox jumps over the lazy dog.</p>
+        </div>
+      </div>
+
+      <!-- Target row -->
+      <div class="target-row">
+        <div class="target-l">
+          <span data-i18n="applyTo" title="Choose which elements get the new font">Apply to</span>
+          <select id="targetModeSelect" class="inline-sel" data-tooltip="Whole page • Article/main • Headings only • Picked element">
+            <option value="page" data-i18n="wholePage">Whole page</option>
+            <option value="content" data-i18n="articleMain">Article / main</option>
+            <option value="headings" data-i18n="headingsOnly">Headings</option>
+            <option value="selector" data-i18n="pickedElement">Picked element</option>
+          </select>
+        </div>
+        <button class="pick-btn" id="pickerButton" type="button" data-i18n="pickOnPage" data-tooltip="Click, then click an element on page to select">Pick on page</button>
+      </div>
+
+      <!-- Target banner (shown when target not found) -->
+      <div class="target-not-found-banner" id="targetNotFoundBanner" hidden role="alert">
+        <p class="target-not-found-msg" data-i18n="targetNotFoundMsg">Saved target not found on this page.</p>
+        <div class="target-not-found-actions">
+          <button type="button" class="abt" id="repickTargetButton" data-i18n="repick">Repick</button>
+          <button type="button" class="abt" id="useWholePageButton" data-i18n="useWholePage">Use whole page</button>
+        </div>
+      </div>
+      <p class="meta-note selector-warning" id="selectorWarning" aria-live="polite" hidden
+        data-i18n="selectorWarning">Dynamic page — selector may need to be repicked after navigation.</p>
+      <p class="meta-note target-summary" id="targetSummary" style="padding:4px 16px;font-size:9px;color:var(--muted)">Whole page</p>
+
+      <!-- Typography accordion -->
+      <div class="acc open" id="accTypo">
+        <button class="acc-head" data-tooltip="Size, weight, line height, color, more">
+          <span class="acc-title" data-i18n="applyTypography">Typography</span>
+          <span class="acc-chev">▾</span>
+        </button>
+        <div class="acc-body">
+          <div class="acc-inner">
+            <div class="typo-grid apply-typography">
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="sizePx" data-tooltip="100% = normal • 50% = smaller • 200% = larger">Size px</span>
+                <input class="tinput" id="fontSizeInput" type="number" min="50" max="200" step="1" placeholder="100" data-tooltip="Zoom: 50–200%">
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="weight" data-tooltip="Thickness: 100=thin, 400=normal, 700=bold, 900=ultra">Weight</span>
+                <select class="tsel" id="fontWeightSelect" data-tooltip="Font weight (if supported)">
+                  <option value="" data-i18n="weightDefault">Default</option>
+                  <option value="100">100</option><option value="200">200</option>
+                  <option value="300">300</option><option value="400">400</option>
+                  <option value="500">500</option><option value="600">600</option>
+                  <option value="700">700</option><option value="800">800</option>
+                  <option value="900">900</option>
+                </select>
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="lineHeight" data-tooltip="Space between lines — higher = more breathing">Line height</span>
+                <input class="tinput" id="lineHeightInput" type="number" min="0.8" max="2.5" step="0.05" placeholder="inherit" data-tooltip="Line spacing: 0.8–2.5">
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="style" data-tooltip="Normal • Italic • Oblique">Style</span>
+                <select class="tsel" id="fontStyleSelect" data-tooltip="Choose font style">
+                  <option value="normal" data-i18n="styleNormal">Normal</option>
+                  <option value="italic" data-i18n="styleItalic">Italic</option>
+                  <option value="oblique" data-i18n="styleOblique">Oblique</option>
+                </select>
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="trackingEm" data-tooltip="Letter spacing in em units">Tracking em</span>
+                <input class="tinput" id="letterSpacingInput" type="number" min="-0.12" max="0.30" step="0.01" placeholder="0" data-tooltip="Range: -0.12 to 0.30">
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="wordSpacingEm" data-tooltip="Space between words in em">Word spacing</span>
+                <input class="tinput" id="wordSpacingInput" type="number" min="-0.2" max="0.5" step="0.01" placeholder="0" data-tooltip="Range: -0.2 to 0.5">
+              </div>
+              <div class="typo-cell full">
+                <span class="tlabel" data-i18n="transform" data-tooltip="UPPERCASE • lowercase • Capitalize">Transform</span>
+                <select class="tsel" id="textTransformSelect" data-tooltip="Text case change">
+                  <option value="none" data-i18n="transformNone">None</option>
+                  <option value="uppercase" data-i18n="transformUppercase">UPPERCASE</option>
+                  <option value="lowercase" data-i18n="transformLowercase">lowercase</option>
+                  <option value="capitalize" data-i18n="transformCapitalize">Capitalize</option>
+                </select>
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="textColor" data-tooltip="#000000 = black • #FFFFFF = white">Text color</span>
+                <input class="tinput thex-color" id="textColorInput" type="text" value="#0E0E0C" maxlength="7" placeholder="#000000" data-tooltip="Hex color #RRGGBB">
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="textDecoration" data-tooltip="Underline • Line-through • Overline">Decoration</span>
+                <select class="tsel" id="textDecorationSelect" data-tooltip="Add lines to text">
+                  <option value="none">None</option>
+                  <option value="underline">Underline</option>
+                  <option value="line-through">Line-through</option>
+                  <option value="overline">Overline</option>
+                </select>
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="textShadow" data-tooltip="Soft • Medium • Hard shadow">Shadow</span>
+                <select class="tsel" id="textShadowSelect" data-tooltip="Shadow effect">
+                  <option value="none">None</option>
+                  <option value="soft">Soft</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div class="typo-cell">
+                <span class="tlabel" data-i18n="opacity" data-tooltip="100% = visible • 50% = semi-transparent">Opacity</span>
+                <input class="tinput" id="textOpacityInput" type="number" min="0" max="100" step="5" value="100" placeholder="%" data-tooltip="0–100%">
+              </div>
+            </div>
+            <div class="toggle-row">
+              <span class="mtog-text" data-i18n="textOnlyMode" data-tooltip="Keep icons, buttons, decorative elements">Text-only mode</span>
+              <label class="mtog toggle-field compact" for="textOnlyCheckbox" data-tooltip="Text only — keep icons & decorations">
+                <input id="textOnlyCheckbox" type="checkbox">
+                <div class="mtrack"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <span class="mtog-text" data-i18n="relaxLayoutMode" data-tooltip="Prevent text overflow by increasing padding">Relax containers</span>
+              <label class="mtog toggle-field compact" for="relaxLayoutCheckbox" data-tooltip="Fix text overflow issues">
+                <input id="relaxLayoutCheckbox" type="checkbox">
+                <div class="mtrack"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OpenType accordion -->
+      <div class="acc" id="accOT">
+        <button class="acc-head" data-tooltip="Stylistic sets, ligatures, small caps (if supported)">
+          <span class="acc-title" data-i18n="openType">OpenType features</span>
+          <span class="acc-chev">▾</span>
+        </button>
+        <div class="acc-body">
+          <div class="acc-inner">
+            <div class="opentype-sets" id="opentypeFeaturesWrap" aria-label="Font feature toggles"></div>
+            <input type="text" id="fontFeatureSettingsInput" class="opentype-other tinput-full"
+              data-i18n-placeholder="openTypeOtherPlaceholder"
+              placeholder='Other: "kern" 1' aria-label="Other font feature settings">
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets accordion -->
+      <div class="acc" id="accPresets">
+        <button class="acc-head" data-tooltip="Save & reuse typography settings">
+          <span class="acc-title">Typography Presets</span>
+          <span class="acc-chev">▾</span>
+        </button>
+        <div class="acc-body">
+          <div class="acc-inner">
+            <div class="presets-grid" id="presetsGrid"></div>
+            <div class="preset-save-row">
+              <input type="text" id="presetNameInput" class="preset-name-input" placeholder="Preset name..." data-tooltip="Name for this preset">
+              <button class="preset-save-btn" id="savePresetButton" type="button" data-i18n="saveAsPreset" data-tooltip="Save as reusable preset">Save as preset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rules accordion (replaces Font Pairs) -->
+      <div class="acc" id="accFontPairs">
+        <button class="acc-head" data-tooltip="Apply different fonts to headings, body, links">
+          <span class="acc-title">Font Rules</span>
+          <span class="acc-chev">▾</span>
+        </button>
+        <div class="acc-body">
+          <div class="acc-inner rules-acc-inner">
+            <p class="rules-editing-label" id="rulesEditingLabel"></p>
+            <div class="rules-chips" id="rulesChips"></div>
+            <button class="rules-add-btn" id="addRuleBtn" type="button" data-tooltip="Add rule for specific elements">+ Add rule</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accessibility checker -->
+      <div class="acc" id="accAccessibility">
+        <button class="acc-head" data-tooltip="Check WCAG contrast compliance">
+          <span class="acc-title">Accessibility</span>
+          <span class="acc-chev">▾</span>
+        </button>
+        <div class="acc-body">
+          <div class="acc-inner acc-inner-a11y">
+
+            <!-- Color pair row -->
+            <div class="acc-pair-row">
+              <div class="acc-color-cell">
+                <span class="acc-color-label">Text</span>
+                <input type="text" id="accFgInput" class="acc-color-input" value="#0E0E0C" maxlength="7" placeholder="#000000" spellcheck="false">
+                <span class="acc-swatch" id="accFgSwatch" style="background:#0E0E0C"></span>
+              </div>
+              <span class="acc-on">on</span>
+              <div class="acc-color-cell">
+                <span class="acc-color-label">Background</span>
+                <input type="text" id="accBgInput" class="acc-color-input" value="#FAFAF6" maxlength="7" placeholder="#FFFFFF" spellcheck="false">
+                <span class="acc-swatch" id="accBgSwatch" style="background:#FAFAF6;border-color:var(--line)"></span>
+              </div>
+              <button class="acc-sync-btn" id="accAutoFillBtn" type="button" title="Pull from current typography settings">↻</button>
+            </div>
+
+            <!-- Live preview swatch -->
+            <div class="acc-preview-band" id="accPreviewBand">
+              <span class="acc-preview-text" id="accPreviewText">Aa — The quick brown fox</span>
+            </div>
+
+            <!-- Results grid -->
+            <div class="acc-results" id="accessibilityStatus">
+              <div class="acc-result-row">
+                <span class="acc-result-key">Ratio</span>
+                <span class="acc-result-val" id="accRatioVal">—</span>
+              </div>
+              <div class="acc-result-row">
+                <span class="acc-result-key">Normal text  <small>≥ 4.5</small></span>
+                <span class="acc-result-badge" id="accNormalBadge">—</span>
+              </div>
+              <div class="acc-result-row">
+                <span class="acc-result-key">Large text  <small>≥ 3.0</small></span>
+                <span class="acc-result-badge" id="accLargeBadge">—</span>
+              </div>
+              <div class="acc-result-row">
+                <span class="acc-result-key">AAA  <small>≥ 7.0</small></span>
+                <span class="acc-result-badge" id="accAAABadge">—</span>
+              </div>
+            </div>
+
+            <!-- Readability hints -->
+            <div class="acc-hints" id="accHints"></div>
+
+            <button class="abt abt-sm" id="checkAccessibilityButton" type="button">Check</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Undo/Redo -->
+      <div class="history-row">
+        <button class="abt abt-sm" id="undoButton" type="button" title="Undo last change" disabled>↶ Undo</button>
+        <button class="abt abt-sm" id="redoButton" type="button" title="Redo last change" disabled>↷ Redo</button>
+      </div>
+
+      <!-- Keyboard shortcuts hint -->
+      <div class="shortcuts-hint" id="shortcutsHint" hidden>
+        <p><strong>Keyboard shortcuts:</strong></p>
+        <ul>
+          <li><kbd>Alt</kbd> + <kbd>1-0</kbd> Switch between recent fonts</li>
+          <li><kbd>⌘</kbd> + <kbd>Z</kbd> Undo (macOS)</li>
+          <li><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> Toggle override</li>
+        </ul>
+      </div>
+
+      <!-- Global / default -->
+      <div class="global-row">
+        <label class="mtog toggle-field" for="globalOverrideCheckbox" data-tooltip="Use on all sites (per-site overrides)">
+          <span class="mtog-text" data-i18n="globalDefaultFont">Use as global default font</span>
+        </label>
+        <label class="mtog" for="globalOverrideCheckbox" data-tooltip="Global default (can be overridden)">
+          <input type="checkbox" id="globalOverrideCheckbox" data-i18n-aria-label="globalDefaultFont">
+          <div class="mtrack"></div>
+        </label>
+      </div>
+
+      <!-- Action bar (bottom) -->
+      <div class="actions-bar">
+        <button class="abt primary rip-host" id="applyButton" type="button" data-i18n="apply" data-tooltip="Apply to current site"><span>Apply</span></button>
+        <button class="abt rip-host" id="resetButton" type="button" data-i18n="reset" data-tooltip="Undo & return to original"><span>Reset</span></button>
+        <button class="abt ghost" id="copyCssButton" type="button" data-i18n="copyCss" data-tooltip="Copy CSS rules to clipboard"><span>Copy CSS</span></button>
+        <div class="overflow-wrap">
+          <button class="abt more" id="btnMoreApply" data-tooltip="More options">⋯</button>
+          <div class="overflow-menu" id="overflowMenuApply">
+            <button class="om-item" id="saveAsDefaultButton" type="button" data-i18n="saveAsDefault" data-tooltip="Use globally on all sites">Save as default</button>
+            <button class="om-item" id="shareSiteButton" type="button" data-tooltip="Create shareable code">↗ Share site…</button>
+            <button class="om-item" id="focusCaptureButton" type="button" data-tooltip="Screenshot this element">◎ Focus capture…</button>
+            <button class="om-item danger" id="deleteButton" type="button" data-i18n="deleteFont" data-tooltip="Delete font from storage">Delete font…</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Share dialog -->
+      <div class="share-dialog" id="shareDialog" hidden>
+        <div class="share-dialog-head">
+          <span class="share-dialog-title">Share — <span id="shareDialogHost"></span></span>
+          <button type="button" class="share-close-btn" id="shareCloseBtn">✕</button>
+        </div>
+        <textarea class="share-code" id="shareCode" readonly spellcheck="false"></textarea>
+        <p class="share-font-note" id="shareFontNote"></p>
+        <div class="share-actions">
+          <button class="abt-sm" id="copyShareCodeBtn" type="button">Copy code</button>
+          <button class="abt-sm" id="downloadShareBtn" type="button">Download JSON</button>
+        </div>
+      </div>
+
+      <!-- Status message -->
+      <p class="status-row" id="statusMessage" role="status"></p>
+    </section>
+
+    <!-- ────────── SITES ────────── -->
+    <section id="panelSites" class="panel" role="tabpanel" aria-labelledby="tabSites" hidden>
+      <div class="sites-head">
+        <input type="search" id="sitesSearch" class="sites-search" data-i18n-placeholder="sitesSearchPlaceholder" placeholder="Search domain or font…" aria-label="Search sites">
+      </div>
+      <div class="sites-toolbar-row">
+        <label class="sites-sort-label">
+          <span class="tlabel" data-i18n="sortBy" data-tooltip="Reorder sites">Sort</span>
+          <select id="sitesSortBy" class="inline-sel" aria-label="Sort sites by" data-tooltip="Domain • Date • Font • Recent">
+            <option value="domain" data-i18n="sortDomain">Domain</option>
+            <option value="date" data-i18n="sortDate">Date</option>
+            <option value="fontName" data-i18n="sortFontName">Font</option>
+            <option value="recent" data-i18n="sortRecent">Recent</option>
+          </select>
+        </label>
+        <div class="sites-import-export">
+          <button type="button" class="btn-text-sm" id="exportButton" data-i18n="export" data-tooltip="Download as JSON backup">Export</button>
+          <span aria-hidden="true">/</span>
+          <label class="btn-text-sm import-label" data-tooltip="Upload JSON backup">
+            <input type="file" id="importFile" accept=".json" hidden>
+            <span data-i18n="import">Import</span>
+          </label>
+        </div>
+      </div>
+      <div class="sites-copy-row">
+        <button type="button" class="btn-text-sm" id="copyFromCurrentButton" disabled data-i18n="copyFromCurrent" data-tooltip="Reuse settings on other sites">Copy from current site</button>
+        <span class="sites-copy-hint" id="sitesCopyHint" aria-live="polite"></span>
+      </div>
+      <ul class="sites-list" id="sitesList" aria-label="Sites with overrides"></ul>
+      <p class="sites-empty" id="sitesEmpty" data-i18n="noSitesYet">No sites saved yet.</p>
+    </section>
+
+    <!-- ────────── INSPECT ────────── -->
+    <section id="panelInspect" class="panel" role="tabpanel" aria-labelledby="tabInspect">
+
+      <div class="inspect-hero">
+        <p class="inspect-hero-text" data-i18n="inspectHeroText">Scan the page to see what fonts it uses — loaded font faces, @font-face declarations, and computed styles on key elements.</p>
+        <button type="button" class="inspect-scan-btn" id="inspectScanBtn" data-i18n="inspectScan" data-tooltip="See all fonts on this page">Scan page</button>
+      </div>
+
+      <div id="inspectResults" class="inspect-results" hidden>
+
+        <!-- Loaded fonts -->
+        <div class="inspect-section" id="inspectSectionLoaded" hidden>
+          <p class="inspect-section-title">
+            <span data-i18n="inspectLoadedFonts">Loaded fonts</span>
+            <span class="inspect-count" id="inspectLoadedCount"></span>
+          </p>
+          <ul class="inspect-font-list" id="inspectFontList"></ul>
+        </div>
+
+        <!-- Element computed styles -->
+        <div class="inspect-section" id="inspectSectionElements" hidden>
+          <p class="inspect-section-title" data-i18n="inspectElementFonts">Element typography</p>
+          <div class="inspect-elem-grid" id="inspectElemGrid"></div>
+        </div>
+
+        <!-- @font-face rules -->
+        <div class="inspect-section" id="inspectSectionFaces" hidden>
+          <p class="inspect-section-title">
+            <span data-i18n="inspectFontFaceRules">@font-face rules</span>
+            <span class="inspect-count" id="inspectFaceCount"></span>
+          </p>
+          <ul class="inspect-face-list" id="inspectFaceList"></ul>
+        </div>
+
+        <p class="inspect-empty" id="inspectEmpty" hidden data-i18n="inspectNoData">No font data found on this page.</p>
+      </div>
+
+    </section>
+
+  </div><!-- /panels -->
+
+  <!-- ══ FOOTER ══ -->
+  <footer class="footer">
+    <span class="footer-note" data-i18n="mainFrameHint">Override applies to the main frame of the tab.</span>
+    <div class="footer-right">
+      <p class="footer-hotkey" id="hotkeyHint" aria-hidden="true"></p>
+      <label class="footer-badge-label" data-tooltip="Show badge on pages">
+        <input type="checkbox" id="showPageBadgeCheckbox" checked aria-label="Show font badge on page">
+        <span class="footer-badge-text" data-i18n="showPageBadge">Badge</span>
+      </label>
+      <label class="theme-label" data-tooltip="Light • Dark • System">
+        <select id="themeSelect" class="inline-sel" aria-label="Theme">
+          <option value="system" data-i18n="themeSystem">System</option>
+          <option value="light" data-i18n="themeLight">Light</option>
+          <option value="dark" data-i18n="themeDark">Dark</option>
+        </select>
+      </label>
+    </div>
+  </footer>
+
+</main>
+
+<script src="shared.js"></script>
+<script src="popup/tooltips.js"></script>
+<script src="popup/state.js"></script>
+<script src="popup/helpers.js"></script>
+<script src="popup/storage.js"></script>
+<script src="popup/features.js"></script>
+<script src="popup/handlers.js"></script>
+<script src="popup/render.js"></script>
+<script src="popup/index.js"></script>
+<script src="popup/ui.js"></script>
+</body>
+</html>

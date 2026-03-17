@@ -1,0 +1,57 @@
+/* ═══════════════════════════════════════════
+   Koppl — Tooltip Styles
+═══════════════════════════════════════════ */
+
+/* Tooltip bubble — position: fixed, coords set by JS */
+.ktooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: 0;
+
+  max-width: 200px;
+  padding: 6px 10px;
+  border-radius: var(--r);
+
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+
+  white-space: normal;
+  word-wrap: break-word;
+
+  opacity: 0;
+  transition: opacity 0.15s var(--e3);
+}
+
+[data-theme="dark"] .ktooltip {
+  background: #2C2C2A;
+  color: var(--ink);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Visible state */
+.ktooltip.ktooltip-visible {
+  opacity: 1;
+}
+
+/* Arrow — positioned by JS via data-arrow attr */
+.ktooltip::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+/* Arrow positions */
+.ktooltip[data-arrow="bottom"]::after { bottom: -3px; left: 50%; margin-left: -3px; }
+.ktooltip[data-arrow="top"]::after    { top: -3px;    left: 50%; margin-left: -3px; }
+.ktooltip[data-arrow="right"]::after  { right: -3px;  top: 50%;  margin-top: -3px;  }
+.ktooltip[data-arrow="left"]::after   { left: -3px;   top: 50%;  margin-top: -3px;  }
